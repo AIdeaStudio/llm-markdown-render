@@ -1,6 +1,6 @@
-# Markdown 渲染器组件 (`MarkdownRenderer.vue`)
+# LLM 流式Markdown 渲染器组件
 
-这是一个功能丰富的 Vue 3 Markdown 渲染组件，旨在提供高质量的 Markdown 内容展示，并扩展支持了图表和数学公式。
+支持所有markdown基础特性以及echarts、mermaid图表和数学公式。
 
 ## ✨ 功能特性
 
