@@ -1,6 +1,6 @@
 # LLM 流式Markdown 渲染器组件
 
-支持所有markdown基础特性以及echarts、mermaid图表和数学公式。
+开箱即用，支持所有markdown基础特性以及echarts、mermaid图表和数学公式。
 
 ## ✨ 功能特性
 
