@@ -19,7 +19,72 @@
 
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
+import {
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  DatasetComponent,
+  ToolboxComponent,
+  VisualMapComponent,
+  SingleAxisComponent,
+  DataZoomComponent,
+  GraphicComponent,
+  MarkPointComponent,
+  MarkLineComponent,
+  MarkAreaComponent,
+  TimelineComponent,
+  GridSimpleComponent,
+  BrushComponent,
+  CalendarComponent,
+} from 'echarts/components'
+import { BarChart, LineChart, PieChart, ScatterChart, RadarChart, TreeChart, TreemapChart, GraphChart, GaugeChart, FunnelChart, ParallelChart, SankeyChart, BoxplotChart, CandlestickChart, EffectScatterChart, LinesChart, HeatmapChart, PictorialBarChart, ThemeRiverChart, SunburstChart } from 'echarts/charts'
+import { UniversalTransition } from 'echarts/features'
+import { CanvasRenderer } from 'echarts/renderers'
+import 'echarts-wordcloud'
+
+echarts.use([
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  TitleComponent,
+  DatasetComponent,
+  ToolboxComponent,
+  VisualMapComponent,
+  SingleAxisComponent,
+  DataZoomComponent,
+  GraphicComponent,
+  MarkPointComponent,
+  MarkLineComponent,
+  MarkAreaComponent,
+  TimelineComponent,
+  GridSimpleComponent,
+  BrushComponent,
+  CalendarComponent,
+  BarChart,
+  LineChart,
+  PieChart,
+  ScatterChart,
+  RadarChart,
+  TreeChart,
+  TreemapChart,
+  GraphChart,
+  GaugeChart,
+  FunnelChart,
+  ParallelChart,
+  SankeyChart,
+  BoxplotChart,
+  CandlestickChart,
+  EffectScatterChart,
+  LinesChart,
+  HeatmapChart,
+  PictorialBarChart,
+  ThemeRiverChart,
+  SunburstChart,
+  UniversalTransition,
+  CanvasRenderer,
+])
 
 const props = defineProps({
   config: {
@@ -40,7 +105,7 @@ const computeDesiredWidth = (opt: any): number | null => {
   // Heuristic based on category axis length
   const getLen = (axis: any): number => {
     if (!axis) return 0
-    const a = Array.isArray(axis) ? axis[0] : axis
+    const a = Array.isArray(axis) ? axis : axis
     const data = a?.data
     return Array.isArray(data) ? data.length : 0
   }
@@ -80,7 +145,8 @@ const renderCharts = () => {
     } else {
       containerStyle.value = {}
     }
-    nextTick(() => chart?.resize())
+    // No need to call resize manually, ResizeObserver will handle it.
+    // nextTick(() => chart?.resize())
   }
 }
 
@@ -88,9 +154,19 @@ watch(
   () => props.config,
   (val) => {
     try {
-      option.value = JSON.parse(val)
+      // 通过正则表达式精确提取从第一个 { 到最后一个 } 的完整JSON对象字符串
+      const match = val.match(/\{[\s\S]*\}/);
+      if (!match) {
+        throw new Error("在传入的配置中找不到有效的JSON对象");
+      }
+      const jsonStr = match;
+      
+      // 使用 new Function() 来解析包含函数的JS对象字符串，比eval更安全
+      const func = new Function(`return (${jsonStr})`);
+      option.value = func();
       renderCharts()
     } catch (err) {
+      console.error('解析Echarts配置失败:', err, val);
       loading.value = true
     }
   },
