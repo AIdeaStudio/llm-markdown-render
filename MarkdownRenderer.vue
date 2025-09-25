@@ -145,6 +145,7 @@ export default {
   overflow-wrap: break-word;
   hyphens: none;
   line-height: 1.6;
+  color: var(--text-color);
 }
 
 /* 列表样式 */
