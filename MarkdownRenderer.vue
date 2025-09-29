@@ -1,5 +1,5 @@
 <template>
-  <div class="markdown-renderer">
+  <div class="markdown-renderer" ref="rootEl">
     <VueMarkdown 
       ref="markdownRenderer"
       :content="content"
@@ -11,7 +11,7 @@
 </template>
 
 <script>
-import { ref, shallowRef, onMounted } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import VueMarkdown from 'vue-markdown-stream'
 import 'vue-markdown-stream/dist/index.css'
 import { full as emoji } from 'markdown-it-emoji'
@@ -34,8 +34,8 @@ export default {
     }
   },
   setup(props) {
-    // 使用 shallowRef 来避免不必要的深层响应式处理
     const markdownRenderer = ref(null)
+    const rootEl = ref(null)
     
     // 启用 emoji 与 LaTeX(KaTeX) 渲染（行内与块级）
     // markdown-it-katex 默认支持 $...$ 与 $$...$$ 语法
@@ -62,12 +62,81 @@ export default {
     }
     
     // 如果需要在组件挂载后执行某些操作
+    const enhanceCodeBlocks = () => {
+      nextTick(() => {
+        const container = rootEl.value
+        if (!container) return
+
+        const codeBlocks = container.querySelectorAll('pre')
+        codeBlocks.forEach((pre) => {
+          if (pre.dataset.enhanced === 'true') return
+          const codeElement = pre.querySelector('code')
+
+          const wrapper = document.createElement('div')
+          wrapper.className = 'code-block-container'
+
+          const header = document.createElement('div')
+          header.className = 'code-block-header'
+
+          const languageLabel = document.createElement('span')
+          languageLabel.className = 'code-block-language'
+          const languageMatch = codeElement?.className?.match(/language-([\w+-]+)/i)
+          languageLabel.textContent = languageMatch ? languageMatch[1].toUpperCase() : 'CODE'
+
+          const copyButton = document.createElement('button')
+          copyButton.type = 'button'
+          copyButton.className = 'code-block-copy-button'
+          copyButton.textContent = '复制'
+
+          const resetButtonState = (text = '复制') => {
+            copyButton.textContent = text
+            copyButton.classList.remove('copied', 'error')
+          }
+
+          copyButton.addEventListener('click', async () => {
+            const codeText = codeElement?.innerText ?? ''
+            if (!codeText) return
+
+            try {
+              await navigator.clipboard.writeText(codeText)
+              copyButton.textContent = '已复制'
+              copyButton.classList.add('copied')
+            } catch (error) {
+              copyButton.textContent = '复制失败'
+              copyButton.classList.add('error')
+              console.error('复制代码失败:', error)
+            }
+
+            setTimeout(() => resetButtonState(), 2000)
+          })
+
+          header.appendChild(languageLabel)
+          header.appendChild(copyButton)
+
+          pre.dataset.enhanced = 'true'
+          pre.classList.add('code-block')
+
+          pre.parentNode?.insertBefore(wrapper, pre)
+          wrapper.appendChild(header)
+          wrapper.appendChild(pre)
+        })
+      })
+    }
+
     onMounted(() => {
-      // 组件已挂载
+      enhanceCodeBlocks()
     })
+
+    watch(
+      () => props.content,
+      () => {
+        enhanceCodeBlocks()
+      }
+    )
     
     return {
       markdownRenderer,
+      rootEl,
       plugins,
       fencePlugins
     }
@@ -216,28 +285,103 @@ export default {
 }
 
 /* 代码块样式增强 */
-.markdown-renderer pre {
-  background-color: #f6f8fa;
-  border-radius: 6px;
-  padding: 16px;
+
+.code-block-container {
+  position: relative;
+  margin: 1.5em 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fafbff 0%, #f4f7fb 100%);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 14px 30px -20px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+}
+
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65em 1.05em;
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #4a5568;
+}
+
+.code-block-language {
+  font-weight: 600;
+  color: #2d3748;
+  background: rgba(74, 144, 226, 0.14);
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 8px;
+  padding: 0.2em 0.7em;
+  letter-spacing: 0.04em;
+}
+
+.code-block-copy-button {
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  background: rgba(255, 255, 255, 0.85);
+  color: #4a5568;
+  border-radius: 8px;
+  padding: 0.3em 0.9em;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  box-shadow: 0 4px 12px -10px rgba(74, 144, 226, 0.8);
+}
+
+.code-block-copy-button:hover {
+  background: rgba(123, 182, 246, 0.18);
+  border-color: rgba(74, 144, 226, 0.4);
+  transform: translateY(-1px);
+}
+
+.code-block-copy-button:active {
+  transform: translateY(0);
+}
+
+.code-block-copy-button.copied {
+  background: rgba(72, 187, 120, 0.18);
+  color: #166534;
+  border-color: rgba(72, 187, 120, 0.35);
+}
+
+.code-block-copy-button.error {
+  background: rgba(245, 101, 101, 0.18);
+  color: #9b1c1c;
+  border-color: rgba(245, 101, 101, 0.35);
+}
+
+.code-block {
+  background-color: transparent;
+  color: inherit;
+  border-radius: 0;
+  padding: 1.15em 1.35em;
   overflow: auto;
-  margin: 1em 0;
-  line-height: 1.45;
-  font-size: 85%;
+  margin: 0;
+  line-height: 1.65;
+  font-size: 0.92rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  font-family: 'Fira Code', 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
 .markdown-renderer code {
-  background-color: rgba(27,31,35,0.05);
-  border-radius: 3px;
-  padding: 0.2em 0.4em;
-  font-size: 85%;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  background-color: rgba(15, 23, 42, 0.08);
+  border-radius: 6px;
+  padding: 0.2em 0.45em;
+  font-size: 0.9rem;
+  font-family: 'Fira Code', 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #0f172a;
 }
 
 .markdown-renderer pre code {
   background-color: transparent;
   padding: 0;
-  font-size: 100%;
+  font-size: 1rem;
 }
 
 /* KaTeX 渲染：为块级公式添加垂直间距，并优化滚动 */
