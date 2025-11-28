@@ -1,5 +1,9 @@
 <template>
-  <div class="markdown-renderer" ref="rootEl">
+  <div 
+    class="markdown-renderer" 
+    :class="{ 'streaming-mode': streaming }"
+    ref="rootEl"
+  >
     <VueMarkdown 
       ref="markdownRenderer"
       :content="content"
@@ -31,6 +35,10 @@ export default {
     content: {
       type: String,
       required: true
+    },
+    streaming: {
+      type: Boolean,
+      default: false
     }
   },
   setup(props) {
@@ -120,6 +128,32 @@ export default {
           wrapper.appendChild(header)
           wrapper.appendChild(pre)
         })
+
+        const links = container.querySelectorAll('a[href]')
+        links.forEach((anchor) => {
+          if (anchor.dataset.enhanced === 'true') return
+
+          // 检查链接是否包含图片标签,如果是图片链接则跳过处理
+          const hasImage = anchor.querySelector('img')
+          if (hasImage) {
+            // 图片链接不做处理,让图片正常显示
+            anchor.dataset.enhanced = 'true'
+            return
+          }
+
+          anchor.setAttribute('target', '_blank')
+          anchor.setAttribute('rel', 'noopener noreferrer')
+
+          const handleClick = (event) => {
+            const href = anchor.getAttribute('href')
+            if (!href) return
+            event.preventDefault()
+            window.open(href, '_blank', 'noopener')
+          }
+
+          anchor.addEventListener('click', handleClick)
+          anchor.dataset.enhanced = 'true'
+        })
       })
     }
 
@@ -153,6 +187,7 @@ export default {
   line-height: 1.6;
   text-align: left;
   overflow-x: auto; /* 横向可滚动，容纳宽图表 */
+  color: #1a202c; /* 默认深色文字 */
 }
 
 .rendered-content {
@@ -162,6 +197,7 @@ export default {
   word-break: normal;
   overflow-wrap: break-word;
   hyphens: none;
+  color: #1a202c; /* 深色文字 */
 }
 
 /* 让图表块可以根据内容自适应宽度，同时不超出容器（横向滚动） */
@@ -183,6 +219,7 @@ export default {
   font-weight: 600;
   line-height: 1.25;
   text-align: left;
+  color: #1a202c; /* 深色文字 */
 }
 
 .markdown-renderer h1 { font-size: 2em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
@@ -190,12 +227,12 @@ export default {
 .markdown-renderer h3 { font-size: 1.3em; }
 .markdown-renderer h4 { font-size: 1.1em; }
 .markdown-renderer h5 { font-size: 1em; }
-.markdown-renderer h6 { font-size: 0.9em; color: #777; }
+.markdown-renderer h6 { font-size: 0.9em; color: #4a5568; } /* h6 使用稍浅的深灰色 */
 
 /* 引用块样式 */
 .markdown-renderer blockquote {
   padding: 0 1em;
-  color: #57606a;
+  color: #4a5568; /* 引用块使用稍浅的深灰色 */
   border-left: 0.25em solid #d0d7de;
   margin: 0 0 16px 0;
 }
@@ -214,7 +251,7 @@ export default {
   overflow-wrap: break-word;
   hyphens: none;
   line-height: 1.6;
-  color: var(--text-color);
+  color: #1a202c; /* 深色文字 */
 }
 
 /* 列表样式 */
@@ -224,10 +261,28 @@ export default {
   padding-left: 2em;
   margin-top: 0;
   margin-bottom: 1em;
+  color: #1a202c; /* 确保列表容器也有颜色 */
 }
 
 .markdown-renderer ul li,
 .markdown-renderer ol li {
+  margin-bottom: 0.25em;
+  color: #1a202c; /* 🔥 修复：明确设置列表项文字颜色为深色 */
+  line-height: 1.6;
+}
+
+/* 确保列表项的标记（圆点/数字）也是深色 */
+.markdown-renderer ul li::marker,
+.markdown-renderer ol li::marker {
+  color: #1a202c;
+}
+
+/* 嵌套列表样式 */
+.markdown-renderer ul ul,
+.markdown-renderer ul ol,
+.markdown-renderer ol ul,
+.markdown-renderer ol ol {
+  margin-top: 0.25em;
   margin-bottom: 0.25em;
 }
 
@@ -249,11 +304,13 @@ export default {
 .markdown-renderer table td {
   border: 1px solid #dfe2e5;
   padding: 6px 13px;
+  color: #1a202c;
 }
 
 .markdown-renderer table th {
   font-weight: 600;
   background-color: #f6f8fa;
+  color: #1a202c;
 }
 
 .markdown-renderer table tr {
@@ -396,5 +453,10 @@ export default {
   margin-top: 1em;    /* 添加上外边距，解决与上方元素的重叠 */
   margin-bottom: 1em; /* 添加下外边距，解决与下方元素的重叠 */
   white-space: normal;
+}
+
+/* 流式输出期间隐藏图片，避免不完整URL导致闪烁 */
+.markdown-renderer.streaming-mode img {
+  display: none;
 }
 </style>
